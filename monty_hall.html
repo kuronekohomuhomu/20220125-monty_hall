@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>モンティ・ホール問題シミュレーター</title>
+<script>
+let car, open;
+let select1, select2;
+let status = "ready";
+const hit = [0, 0];
+const cnt = [0, 0];
+
+const init = () => {
+    // ドアの初期化
+    car = Math.floor(Math.random() * 3);
+    [open, select1, select2] = [-1, -1, -1];
+    for (let i = 0; i < 3; i++) {
+        const door = document.getElementById(`door_${i}`);
+        door.className = "close";
+        door.innerText = i + 1;
+        door.onclick = () => {
+            if (i != open) selectDoor(i);
+        }
+    }
+    status = "ready";
+}
+
+const resetCnt = () => {
+    // 回数をリセット
+    for (let i = 0; i < 2; i++) {
+        hit[i] = 0;
+        cnt[i] = 0;
+        document.getElementById(`prog_${i}`).value = 0;
+        document.getElementById(`per_${i}`).innerText = "0";
+        document.getElementById(`cnt_${i}`).innerText = "0/0";
+    }
+}
+
+const selectDoor = index => {
+    if (status == "ready") {
+        // 1回目の選択
+        select1 = index;
+        status = "select1";
+    } else if (status == "select1") {
+        // 2回目の選択
+        select2 = index;
+        status = "select2";
+    }
+    document.getElementById(`door_${index}`).classList.add(status);
+    // ドアを開く
+    openDoor();
+}
+
+const openDoor = () => {
+    if (status == "select1") {
+        // 選択されていないヤギのドアを開く
+        const goat = new Array();
+        for (let i = 0; i < 3; i++) {
+            if ((i != select1) && (i != car)) goat.push(i);
+        }
+        open = goat[Math.floor(Math.random() * goat.length)];
+        const door = document.getElementById(`door_${open}`);
+        door.classList.replace("close", "open");
+        door.innerHTML = "&#x1f410;";
+    } else if (status == "select2") {
+        // 全てのドアを開く
+        for (let i = 0; i < 3; i++) {
+            const door = document.getElementById(`door_${i}`);
+            door.classList.replace("close", "open");
+            if (i == car) {
+                door.innerHTML = "&#x1f697;";
+            } else {
+                door.innerHTML = "&#x1f410;";
+            }
+        }
+        // 回数を表示
+        let change = 1;
+        if (select1 != select2) change = 0;
+        cnt[change]++;
+        if (select2 == car) hit[change]++;
+        const p = hit[change] / cnt[change] * 100;
+        const c = `${hit[change]}/${cnt[change]}`;
+        document.getElementById(`prog_${change}`).value = Math.floor(p);
+        document.getElementById(`per_${change}`).innerText = p.toFixed(2);
+        document.getElementById(`cnt_${change}`).innerText = c;
+        status = "end";
+    }
+}
+
+const sleep = t => {
+    // ミリ秒間スリープ
+    return new Promise(resolve => {
+        setTimeout(resolve, t);
+    });
+}
+
+const simulate = async () => {
+    // 初期化
+    resetCnt();
+    const num = document.getElementById("num").value;
+    document.getElementById("progress").value = 0;
+    document.getElementById("progress").max = num;
+    document.getElementById("close").disabled = true;
+    document.getElementById("reset").disabled = true;
+    document.getElementById("start").disabled = true;
+    document.getElementById("num").disabled = true;
+    document.getElementById("change").disabled = true;
+    // シミュレーション
+    for (let i = 0; i < num; i++) {
+        init();
+        await sleep(30);
+        // １回目の選択
+        let index = Math.floor(Math.random() * 3);
+        selectDoor(index);
+        await sleep(30);
+        // 2回目の選択
+        let change = document.getElementById("change").value;
+        if (change == 2) change = Math.floor(Math.random() * 2);
+        if (change == 0) {
+            // ドアを変更
+            for (let j = 0; j < 3; j++) {
+                if ((j != select1) && (j != open)) index = j;
+            }
+        }
+        selectDoor(index);
+        await sleep(30);
+        document.getElementById("progress").value = i + 1;
+        document.getElementById("per").innerText = Math.floor((i+1)/num*100);
+    }
+    // シミュレーション終了
+    document.getElementById("close").disabled = false;
+    document.getElementById("reset").disabled = false;
+    document.getElementById("start").disabled = false;
+    document.getElementById("num").disabled = false;
+    document.getElementById("change").disabled = false;
+}
+</script>
+<style>
+input[type="number"] {width: 50px;}
+button {
+    width: 100px;
+    height: 150px;
+    font-size: 50px;
+    color: #FFFFFF;
+    vertical-align: bottom;
+}
+.open {background-color: #000000;}
+.close {background-color: #000066;}
+.select1 {border: 4px dashed #FF0000;}
+.select2 {border: 4px solid #FF00FF;}
+</style>
+</head>
+<body onload="init()">
+<p>モンティ・ホール問題シミュレーター</p>
+<button id="door_0" class="close">1</button>
+<button id="door_1" class="close">2</button>
+<button id="door_2" class="close">3</button>
+<input type="button" id="close" value="ドアを閉じる" onclock="init()">
+<hr>
+ドアを変更した：<progress id="prog_0" value="0" max="100"></progress>
+<span id="per_0">0</span>% (<span id="cnt_0">0/0</span>回)
+<br>
+変更しなかった：<progress id="prog_1" value="0" max="100"></progress>
+<span id="per_1">0</span>% (<span id="cnt_1">0/0</span>回)
+<input type="button" id="reset" value="リセット" onclick="resetCnt()">
+<br>
+試行回数：<input type="number" id="num" value="100" step="100">
+<select id="change">
+<option value="0">変更する</option>
+<option value="1">変更しない</option>
+<option value="2">ランダム</option>
+</select>
+<input type="button" id="start" value="スタート" onclick="simulate()">
+<progress id="progress" value="0" max="100"></progress>
+<span id="per">0</span>%
+</body>
+</html>
